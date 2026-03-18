@@ -1,6 +1,8 @@
+import os
 from dataclasses import dataclass, field
 from typing import Optional
 
+os.environ["FORCE_TORCHRUN"] = "1"
 
 @dataclass
 class ModelConfig:
@@ -32,7 +34,6 @@ class TrainingConfig:
 
     use_gradient_checkpointing: bool = True
     optimizer: str = "adamw_8bit"
-    use_flash_attn: bool = False
     use_deepspeed: bool = True
 
 
@@ -92,7 +93,6 @@ class ExperimentConfig:
             "max_grad_norm": self.training.max_grad_norm,
             "gradient_checkpointing": self.training.use_gradient_checkpointing,
             "optim": self.training.optimizer,
-            "use_flash_attn": self.training.use_flash_attn,
             "seed": self.seed,
         }
 
