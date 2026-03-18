@@ -45,7 +45,7 @@ class QuantizationConfig:
 class DatasetConfig:
     name: str = "paper_review"
     dir: str = "data"
-    val_size: float = 0.1
+    eval_dataset: Optional[str] = None
 
 
 @dataclass
@@ -105,8 +105,8 @@ class ExperimentConfig:
         if self.max_steps is not None:
             config["max_steps"] = self.max_steps
 
-        if self.dataset.val_size > 0:
-            config["val_size"] = self.dataset.val_size
+        if self.dataset.eval_dataset:
+            config["eval_dataset"] = self.dataset.eval_dataset
             config["per_device_eval_batch_size"] = 1
             config["eval_strategy"] = "steps"
             config["eval_steps"] = self.training.save_steps
@@ -132,7 +132,7 @@ def get_local_test_config() -> ExperimentConfig:
 def get_server_config() -> ExperimentConfig:
     config = ExperimentConfig()
     config.precision = "bf16"
-    config.dataset.val_size = 0.1
+    config.dataset.eval_dataset = "paper_review_val"
     return config
 
 
@@ -140,6 +140,6 @@ def get_qlora_config() -> ExperimentConfig:
     config = ExperimentConfig()
     config.precision = "bf16"
     config.quantization.enabled = True
-    config.dataset.val_size = 0.1
+    config.dataset.eval_dataset = "paper_review_val"
     config.output_dir = "outputs/paper_review_qwen2.5_7b_qlora"
     return config

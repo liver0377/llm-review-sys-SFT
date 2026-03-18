@@ -4,6 +4,8 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Tuple
 from dataclasses import dataclass
+import matplotlib.pyplot as plt
+import matplotlib
 
 
 @dataclass
@@ -101,6 +103,155 @@ def print_stats(name: str, stats: TokenStats):
     print(f"  99%分位: {stats.p99:.1f}")
 
 
+def visualize_results(all_results: Dict, output_dir: str = "output"):
+    matplotlib.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "DejaVu Sans"]
+    matplotlib.rcParams["axes.unicode_minus"] = False
+
+    output_path = Path(output_dir)
+    output_path.mkdir(exist_ok=True)
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle("Token Distribution Analysis", fontsize=16)
+
+    token_types = ["instruction", "input", "output", "total"]
+    labels = ["Instruction Tokens", "Input Tokens", "Output Tokens", "Total Tokens"]
+    colors = {"训练集": "#3498db", "验证集": "#2ecc71", "测试集": "#e74c3c"}
+
+    for idx, (token_type, label) in enumerate(zip(token_types, labels)):
+        ax = axes[idx // 2, idx % 2]
+        ax.set_title(label, fontsize=12)
+        ax.set_xlabel("Dataset")
+        ax.set_ylabel("Token Count")
+
+        dataset_names = []
+        means = []
+        medians = []
+        p25s = []
+        p75s = []
+        mins = []
+        maxs = []
+
+        for name in ["训练集", "验证集", "测试集"]:
+            if name in all_results and token_type in all_results[name]:
+                stats = compute_stats(all_results[name][token_type])
+                dataset_names.append(name)
+                means.append(stats.mean)
+                medians.append(stats.median)
+                p25s.append(stats.p25)
+                p75s.append(stats.p75)
+                mins.append(stats.min_val)
+                maxs.append(stats.max_val)
+
+        if dataset_names:
+            x = np.arange(len(dataset_names))
+            width = 0.6
+
+            bars = ax.bar(x, means, width, label="Mean", color=[colors[n] for n in dataset_names])
+
+            for i, (bar, p25, p75) in enumerate(zip(bars, p25s, p75s)):
+                ax.errorbar(
+                    bar.get_x() + bar.get_width() / 2,
+                    means[i],
+                    yerr=[[means[i] - p25s[i]], [p75s[i] - means[i]]],
+                    fmt="none",
+                    color="black",
+                    capsize=5,
+                )
+
+            ax.set_xticks(x)
+            ax.set_xticklabels(dataset_names)
+            ax.legend()
+            ax.grid(axis="y", alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path / "token_stats_summary.png", dpi=150, bbox_inches="tight")
+    print(f"\n📊 统计图已保存: {output_path / 'token_stats_summary.png'}")
+    plt.close()
+
+    for name in all_results:
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        fig.suptitle(f"{name} - Token Distribution", fontsize=16)
+
+        for idx, (token_type, label) in enumerate(zip(token_types, labels)):
+            ax = axes[idx // 2, idx % 2]
+            ax.set_title(label, fontsize=12)
+
+            data = all_results[name][token_type]
+            ax.hist(data, bins=50, color="#3498db", edgecolor="white", alpha=0.7)
+
+            stats = compute_stats(data)
+            ax.axvline(
+                stats.mean,
+                color="red",
+                linestyle="--",
+                linewidth=2,
+                label=f"Mean: {stats.mean:.0f}",
+            )
+            ax.axvline(
+                stats.median,
+                color="green",
+                linestyle="--",
+                linewidth=2,
+                label=f"Median: {stats.median:.0f}",
+            )
+            ax.axvline(
+                stats.p95,
+                color="orange",
+                linestyle="--",
+                linewidth=2,
+                label=f"P95: {stats.p95:.0f}",
+            )
+            ax.axvline(
+                stats.p99,
+                color="purple",
+                linestyle="--",
+                linewidth=2,
+                label=f"P99: {stats.p99:.0f}",
+            )
+
+            ax.set_xlabel("Token Count")
+            ax.set_ylabel("Frequency")
+            ax.legend()
+            ax.grid(alpha=0.3)
+
+        plt.tight_layout()
+        safe_name = name.replace("/", "_")
+        plt.savefig(output_path / f"{safe_name}_distribution.png", dpi=150, bbox_inches="tight")
+        print(f"📊 {name} 分布图已保存: {output_path / f'{safe_name}_distribution.png'}")
+        plt.close()
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle("Token Distribution Comparison (Box Plot)", fontsize=16)
+
+    for idx, (token_type, label) in enumerate(zip(token_types, labels)):
+        ax = axes[idx // 2, idx % 2]
+        ax.set_title(label, fontsize=12)
+
+        box_data = []
+        box_labels = []
+        box_colors = []
+
+        for name in ["训练集", "验证集", "测试集"]:
+            if name in all_results and token_type in all_results[name]:
+                box_data.append(all_results[name][token_type])
+                box_labels.append(name)
+                box_colors.append(colors[name])
+
+        if box_data:
+            bp = ax.boxplot(box_data, labels=box_labels, patch_artist=True)
+            for patch, color in zip(bp["boxes"], box_colors):
+                patch.set_facecolor(color)
+                patch.set_alpha(0.7)
+
+        ax.set_ylabel("Token Count")
+        ax.grid(axis="y", alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path / "token_boxplot.png", dpi=150, bbox_inches="tight")
+    print(f"📊 箱线图已保存: {output_path / 'token_boxplot.png'}")
+    plt.close()
+
+
 def main():
     data_dir = Path("data")
     tokenizer = get_tokenizer()
@@ -155,6 +306,9 @@ def main():
         print(f"输出平均长度: {output_stats.mean:.0f} tokens")
 
     print("\n" + "=" * 60)
+
+    if all_results:
+        visualize_results(all_results)
 
 
 if __name__ == "__main__":
