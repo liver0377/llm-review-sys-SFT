@@ -10,8 +10,8 @@ class ModelConfig:
 
 @dataclass
 class LoRAConfig:
-    rank: int = 64
-    alpha: int = 128
+    rank: int = 32
+    alpha: int = 64
     dropout: float = 0.05
     target: str = "all"
 
@@ -19,19 +19,21 @@ class LoRAConfig:
 @dataclass
 class TrainingConfig:
     num_epochs: int = 3
-    batch_size: int = 2
-    gradient_accumulation_steps: int = 8
+    batch_size: int = 1
+    gradient_accumulation_steps: int = 16
     learning_rate: float = 1e-4
     max_grad_norm: float = 1.0
     warmup_ratio: float = 0.1
     lr_scheduler: str = "cosine"
 
-    cutoff_len: int = 8192
+    cutoff_len: int = 12569
     logging_steps: int = 10
     save_steps: int = 500
 
     use_gradient_checkpointing: bool = True
-    optimizer: str = "adamw_torch"
+    optimizer: str = "adamw_8bit"
+    use_flash_attn: bool = False
+    use_deepspeed: bool = True
 
 
 @dataclass
@@ -90,6 +92,7 @@ class ExperimentConfig:
             "max_grad_norm": self.training.max_grad_norm,
             "gradient_checkpointing": self.training.use_gradient_checkpointing,
             "optim": self.training.optimizer,
+            "use_flash_attn": self.training.use_flash_attn,
             "seed": self.seed,
         }
 
@@ -104,6 +107,9 @@ class ExperimentConfig:
 
         if self.max_steps is not None:
             config["max_steps"] = self.max_steps
+
+        if self.training.use_deepspeed:
+            config["deepspeed"] = "configs/deepspeed_zero2.json"
 
         if self.dataset.eval_dataset:
             config["eval_dataset"] = self.dataset.eval_dataset
