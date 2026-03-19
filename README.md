@@ -15,16 +15,27 @@ llm-review-sys-SFT/
 │   ├── config.py           # 配置管理
 │   ├── train.py            # 训练逻辑
 │   ├── chat.py             # 对话推理
-│   └── evaluate.py         # 评估工具
+│   ├── evaluate.py         # 评估工具
+│   └── evaluation/         # 模型对比评估模块
+│       ├── config.py       # 评估配置
+│       ├── comparator.py   # 对比评估主逻辑
+│       ├── format_eval.py  # 格式遵循评估
+│       ├── score_eval.py   # 分数预测评估
+│       ├── quality_eval.py # 质量评估(ROUGE/BERTScore)
+│       └── llm_judge.py    # LLM-as-Judge评估
 ├── scripts/                 # 快捷脚本
 │   ├── test_local.py       # 本地测试
 │   ├── train_qlora.py      # QLoRA训练
 │   ├── chat.py             # 对话测试
-│   └── evaluate.py         # 评估报告
+│   ├── evaluate.py         # 评估报告
+│   ├── compare_models.py   # 模型对比评估
+│   └── test_evaluation.py  # 评估框架测试
+├── docs/                    # 文档
+│   └── EVALUATION.md       # 评估框架详细文档
 ├── configs/                 # 配置文件 (可选)
 ├── outputs/                 # 模型输出
 ├── main.py                  # 主入口
-├── requirements.txt
+├── pyproject.toml
 └── README.md
 ```
 
@@ -190,6 +201,52 @@ A: 降低 `batch_size` 或使用 QLoRA
 
 **Q: 数据集加载失败**
 A: 检查 `data/dataset_info.json` 路径
+
+## 模型对比评估
+
+### 一键运行
+
+**Windows:**
+```bash
+scripts\run_evaluation.bat
+```
+
+**Linux/Mac:**
+```bash
+bash scripts/run_evaluation.sh
+```
+
+### 手动运行
+
+```bash
+# 1. 安装评估依赖
+uv pip install rouge-score bert-score openai tqdm python-dotenv
+
+# 2. 配置API
+cp .env.example .env
+# 编辑 .env 文件，填入 DASHSCOPE_API_KEY
+
+# 3. 运行评估
+python scripts/compare_models.py
+
+# 快速测试（仅评估前20个样本）
+python scripts/compare_models.py --max_samples 20 --llm_judge_samples 10
+
+# 禁用LLM Judge
+python scripts/compare_models.py --no_llm_judge
+```
+
+### 评估维度
+
+1. **格式遵循**: 检查输出是否符合要求的格式结构
+2. **评审分数**: 使用MSE/MAE/R²评估Overall Quality预测准确性
+3. **评审质量**: 
+   - 自动化指标: ROUGE-L, BERTScore
+   - LLM-as-Judge: 相关性、正确性、覆盖度
+
+### 详细文档
+
+参见 [docs/EVALUATION.md](docs/EVALUATION.md)
 
 ## License
 
