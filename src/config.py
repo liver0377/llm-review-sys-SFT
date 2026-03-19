@@ -34,7 +34,7 @@ class TrainingConfig:
 
     use_gradient_checkpointing: bool = True
     optimizer: str = "adamw_8bit"
-    use_deepspeed: bool = True
+    use_deepspeed: bool = False
 
 
 @dataclass
